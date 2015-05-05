@@ -61,13 +61,6 @@
  */
 #define NR_DESCS_PER_CHANNEL	64
 
-/* The set of bus widths supported by the DMA controller */
-#define DW_DMA_BUSWIDTHS			  \
-	BIT(DMA_SLAVE_BUSWIDTH_UNDEFINED)	| \
-	BIT(DMA_SLAVE_BUSWIDTH_1_BYTE)		| \
-	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES)		| \
-	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES)
-
 /*----------------------------------------------------------------------*/
 
 static struct device *chan2dev(struct dma_chan *chan)
@@ -962,7 +955,8 @@ static inline void convert_burst(u32 *maxburst)
 		*maxburst = 0;
 }
 
-static int dwc_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
+static int
+set_runtime_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 {
 	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
 
@@ -979,25 +973,16 @@ static int dwc_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 	return 0;
 }
 
-static int dwc_pause(struct dma_chan *chan)
+static inline void dwc_chan_pause(struct dw_dma_chan *dwc)
 {
-	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
-	unsigned long		flags;
-	unsigned int		count = 20;	/* timeout iterations */
-	u32			cfglo;
+	u32 cfglo = channel_readl(dwc, CFG_LO);
+	unsigned int count = 20;	/* timeout iterations */
 
-	spin_lock_irqsave(&dwc->lock, flags);
-
-	cfglo = channel_readl(dwc, CFG_LO);
 	channel_writel(dwc, CFG_LO, cfglo | DWC_CFGL_CH_SUSP);
 	while (!(channel_readl(dwc, CFG_LO) & DWC_CFGL_FIFO_EMPTY) && count--)
 		udelay(2);
 
 	dwc->paused = true;
-
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
-	return 0;
 }
 
 static inline void dwc_chan_resume(struct dw_dma_chan *dwc)
@@ -1009,24 +994,8 @@ static inline void dwc_chan_resume(struct dw_dma_chan *dwc)
 	dwc->paused = false;
 }
 
-static int dwc_resume(struct dma_chan *chan)
-{
-	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
-	unsigned long		flags;
-
-	if (!dwc->paused)
-		return 0;
-
-	spin_lock_irqsave(&dwc->lock, flags);
-
-	dwc_chan_resume(dwc);
-
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
-	return 0;
-}
-
-static int dwc_terminate_all(struct dma_chan *chan)
+static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+		       unsigned long arg)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(chan->device);
@@ -1034,23 +1003,44 @@ static int dwc_terminate_all(struct dma_chan *chan)
 	unsigned long		flags;
 	LIST_HEAD(list);
 
-	spin_lock_irqsave(&dwc->lock, flags);
+	if (cmd == DMA_PAUSE) {
+		spin_lock_irqsave(&dwc->lock, flags);
 
-	clear_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags);
+		dwc_chan_pause(dwc);
 
-	dwc_chan_disable(dw, dwc);
+		spin_unlock_irqrestore(&dwc->lock, flags);
+	} else if (cmd == DMA_RESUME) {
+		if (!dwc->paused)
+			return 0;
 
-	dwc_chan_resume(dwc);
+		spin_lock_irqsave(&dwc->lock, flags);
 
-	/* active_list entries will end up before queued entries */
-	list_splice_init(&dwc->queue, &list);
-	list_splice_init(&dwc->active_list, &list);
+		dwc_chan_resume(dwc);
 
-	spin_unlock_irqrestore(&dwc->lock, flags);
+		spin_unlock_irqrestore(&dwc->lock, flags);
+	} else if (cmd == DMA_TERMINATE_ALL) {
+		spin_lock_irqsave(&dwc->lock, flags);
 
-	/* Flush all pending and queued descriptors */
-	list_for_each_entry_safe(desc, _desc, &list, desc_node)
-		dwc_descriptor_complete(dwc, desc, false);
+		clear_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags);
+
+		dwc_chan_disable(dw, dwc);
+
+		dwc_chan_resume(dwc);
+
+		/* active_list entries will end up before queued entries */
+		list_splice_init(&dwc->queue, &list);
+		list_splice_init(&dwc->active_list, &list);
+
+		spin_unlock_irqrestore(&dwc->lock, flags);
+
+		/* Flush all pending and queued descriptors */
+		list_for_each_entry_safe(desc, _desc, &list, desc_node)
+			dwc_descriptor_complete(dwc, desc, false);
+	} else if (cmd == DMA_SLAVE_CONFIG) {
+		return set_runtime_config(chan, (struct dma_slave_config *)arg);
+	} else {
+		return -ENXIO;
+	}
 
 	return 0;
 }
@@ -1667,22 +1657,12 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	dw->dma.device_free_chan_resources = dwc_free_chan_resources;
 
 	dw->dma.device_prep_dma_memcpy = dwc_prep_dma_memcpy;
-	dw->dma.device_prep_slave_sg = dwc_prep_slave_sg;
 
-	dw->dma.device_config = dwc_config;
-	dw->dma.device_pause = dwc_pause;
-	dw->dma.device_resume = dwc_resume;
-	dw->dma.device_terminate_all = dwc_terminate_all;
+	dw->dma.device_prep_slave_sg = dwc_prep_slave_sg;
+	dw->dma.device_control = dwc_control;
 
 	dw->dma.device_tx_status = dwc_tx_status;
 	dw->dma.device_issue_pending = dwc_issue_pending;
-
-	/* DMA capabilities */
-	dw->dma.src_addr_widths = DW_DMA_BUSWIDTHS;
-	dw->dma.dst_addr_widths = DW_DMA_BUSWIDTHS;
-	dw->dma.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV) |
-			     BIT(DMA_MEM_TO_MEM);
-	dw->dma.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 
 	err = dma_async_device_register(&dw->dma);
 	if (err)
