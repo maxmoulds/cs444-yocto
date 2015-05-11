@@ -1385,6 +1385,25 @@ struct ilk_wm_values {
 	enum intel_ddb_partitioning partitioning;
 };
 
+struct vlv_wm_values {
+	struct {
+		uint16_t primary;
+		uint16_t sprite[2];
+		uint8_t cursor;
+	} pipe[3];
+
+	struct {
+		uint16_t plane;
+		uint8_t cursor;
+	} sr;
+
+	struct {
+		uint8_t cursor;
+		uint8_t sprite[2];
+		uint8_t primary;
+	} ddl[3];
+};
+
 struct skl_ddb_entry {
 	uint16_t start, end;	/* in number of blocks, 'end' is exclusive */
 };
@@ -1738,6 +1757,7 @@ struct drm_i915_private {
 		union {
 			struct ilk_wm_values hw;
 			struct skl_wm_values skl_hw;
+			struct vlv_wm_values vlv;
 		};
 	} wm;
 
@@ -2941,8 +2961,8 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u32 mbox, u32 val);
 
 /* intel_sideband.c */
-u32 vlv_punit_read(struct drm_i915_private *dev_priv, u8 addr);
-void vlv_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val);
+u32 vlv_punit_read(struct drm_i915_private *dev_priv, u32 addr);
+void vlv_punit_write(struct drm_i915_private *dev_priv, u32 addr, u32 val);
 u32 vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr);
 u32 vlv_gpio_nc_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_gpio_nc_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
