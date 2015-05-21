@@ -252,27 +252,6 @@ out:
 	return status;
 }
 
-static int vmfs_file_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct dentry *dentry = file->f_path.dentry;
-	int status;
-
-	VERBOSE("file %s/%s, address %lu - %lu\n",
-		DENTRY_PATH(dentry), vma->vm_start, vma->vm_end);
-
-	mutex_lock(&vmfs_mutex);
-	status = vmfs_revalidate_inode(dentry);
-	mutex_unlock(&vmfs_mutex);
-	if (status) {
-		PARANOIA("%s/%s validation failed, error=%d\n",
-			 DENTRY_PATH(dentry), status);
-		goto out;
-	}
-	status = generic_file_mmap(file, vma);
-out:
-	return status;
-}
-
 static ssize_t
 vmfs_file_splice_read(struct file *file, loff_t *ppos,
 		      struct pipe_inode_info *pipe, size_t count,
@@ -477,7 +456,7 @@ const struct file_operations vmfs_file_operations = {
 	.read_iter = vmfs_file_read_iter,
 	.write_iter = vmfs_file_write_iter,
 	.unlocked_ioctl = vmfs_unlocked_ioctl,
-	.mmap = vmfs_file_mmap,
+	.mmap = generic_file_mmap,
 	.open = vmfs_file_open,
 	.release = vmfs_file_release,
 	.fsync = vmfs_fsync,
