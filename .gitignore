@@ -99,3 +99,7 @@ all.config
 
 # Kdevelop4
 *.kdev4
+
+
+#for fun
+!.config
