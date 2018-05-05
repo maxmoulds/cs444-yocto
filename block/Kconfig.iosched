@@ -32,18 +32,18 @@ config IOSCHED_CFQ
 
 	  This is the default I/O scheduler.
 
-config IOSCHED_SSTF
-   tristate "CLOOK/SSTF I/O scheduler"
-   default y
-   ---help---
-     The CLOOK/SSTF I/O scheduler is being tested.
-
 config CFQ_GROUP_IOSCHED
 	bool "CFQ Group Scheduling support"
 	depends on IOSCHED_CFQ && BLK_CGROUP
 	default n
 	---help---
 	  Enable group IO scheduling in CFQ.
+
+config IOSCHED_SSTF
+   tristate "CLOOK/SSTF I/O scheduler"
+   default y
+   ---help---
+     The CLOOK/SSTF I/O scheduler is being tested.
 
 choice
 	prompt "Default I/O scheduler"
@@ -62,7 +62,7 @@ choice
 		bool "No-op"
    
    config DEFAULT_SSTF
-      bool "CLOOK" if IOSCHED_SSTF=y
+      bool "SSTF" if IOSCHED_SSTF=y
 
 endchoice
 

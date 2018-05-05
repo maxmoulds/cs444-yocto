@@ -15,6 +15,7 @@ struct sstf_data {
 static void sstf_merged_requests(struct request_queue *q, struct request *rq,
     struct request *next)
 {
+  printk(KERN_INFO "CLOOK-SSTF: merge\n");
   list_del_init(&next->queuelist);
 }
 
@@ -25,7 +26,7 @@ static int sstf_dispatch(struct request_queue *q, int force)
   if (!list_empty(&nd->queue)) {
     struct request *rq;
     rq = list_entry(nd->queue.next, struct request, queuelist);
-    printk("SSTF: Dispatching %11u\n", (unsigned int)blk_rq_pos(rq));
+    printk("CLOOK-SSTF: dispatching %11u\n", (unsigned int)blk_rq_pos(rq));
     list_del_init(&rq->queuelist);
     elv_dispatch_add_tail(q, rq);
     return 1;
