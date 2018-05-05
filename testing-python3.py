@@ -3,7 +3,7 @@
  * Description:
  *
  * Creation Date: 05-05-2018
- * Last Modified: Sat 05 May 2018 03:01:34 PM PDT
+ * Last Modified: Sat 05 May 2018 02:49:35 PM PDT
  *
  * Author: Max Moulds 
  *
@@ -19,14 +19,14 @@ LEN_TEXT = 100
 
 def test_by_making_files():
   for x in range(0,NUM_TEST_FILES):
-    f = open('FILE'+ `x`, 'w+')
-    print('writing to FILE',x,' ...')
+    f = open('FILE'+ str(x), 'w+')
+    print('writing to FILE',x,' ...', sep='')
     for y in range(0, LEN_TEXT):
       f.write(random.choice(string.ascii_lowercase))
   f.close()
   for x in range(0, NUM_TEST_FILES):
-    print('removing FILE',x, '... ')
-    os.remove("FILE" + `x`))
+    print('removing FILE',x, '... ', sep='')
+    os.remove("FILE" + str(x))
 
 def main():
     test_by_making_files()
