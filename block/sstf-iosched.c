@@ -36,24 +36,18 @@ static int sstf_dispatch(struct request_queue *q, int force)
 
 static void sstf_add_request(struct request_queue *q, struct request *rq)
 {
-  struct list_head *pos;
-  struct request *req;
+  struct list_head *pos = NULL; /* check */
+  struct request *req = NULL;
   struct sstf_data *data = q->elevator->elevator_data;
-
-  /* add new request to data queue */
-  /* arg: [src request], [dest queue] */
-  if(list_empty(&data->queue)){
-    list_add(&rq->queuelist, &data->queue);
-  }else{
-    list_for_each(pos, &data->queue){  /* use list_for_each_safe or whatever for good reasons. */ 
-      req = list_entry(pos, struct request, queuelist);
-      if(blk_rq_pos(req) < blk_rq_pos(rq)){
-        list_add(&rq->queuelist, &req->queuelist);
-        break;
-      }
+  list_for_each(pos, &data->queue){ 
+    req = list_entry(pos, struct request, queuelist); 
+    if(rq_end_sector(rq) < rq_end_sector(req)){ 
+      break; 
     }
   }
-}
+  printk(KERN_DEBUG "CLOOK-SSTF- error insert %13u \n", blk_rq_pos(rq)); 
+  list_add_tail(&rq->queuelist, pos); 
+} 
 
 static struct request *
 sstf_former_request(struct request_queue *q, struct request *rq)
@@ -96,6 +90,7 @@ static int sstf_init_queue(struct request_queue *q, struct elevator_type *e)
   spin_lock_irq(q->queue_lock);
   q->elevator = eq;
   spin_unlock_irq(q->queue_lock);
+  printk(KERN_DEBUG "CLOOK-SSTF- error init queue. \n");
   return 0;
 }
 
@@ -117,7 +112,7 @@ static struct elevator_type elevator_sstf = {
     .elevator_init_fn      = sstf_init_queue,
     .elevator_exit_fn      = sstf_exit_queue,
   },
-  .elevator_name = "clook",
+  .elevator_name = "CLOOK-SSTF",
   .elevator_owner = THIS_MODULE,
 };
 
