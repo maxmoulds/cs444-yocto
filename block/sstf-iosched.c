@@ -91,7 +91,7 @@ static int sstf_init_queue(struct request_queue *q, struct elevator_type *e)
   spin_lock_irq(q->queue_lock);
   q->elevator = eq;
   spin_unlock_irq(q->queue_lock);
-  printk(KERN_DEBUG "CLOOK-SSTF- error init queue. \n");
+  printk(KERN_DEBUG "CLOOK-SSTF: hey, man, whats up. init queue. \n");
   return 0;
 }
 
