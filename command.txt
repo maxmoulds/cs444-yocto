@@ -3,3 +3,4 @@ qemu-system-i386 -gdb tcp::5520 -nographic -kernel arch/x86/boot/bzImage -drive 
 # removed -kernel bzImage-quem... and changed to -kernel arch/x86/boot/bzImage
 # (the image we built)
 
+git diff --no-prefix tags/v3.19.2 'block/sstf-iosched.c' 'block/Kconfig.iosched' 'block/Makefile' '.config' 'testing.py' 'test_script.sh'
