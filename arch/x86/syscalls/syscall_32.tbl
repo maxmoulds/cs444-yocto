@@ -365,3 +365,7 @@
 356	i386	memfd_create		sys_memfd_create
 357	i386	bpf			sys_bpf
 358	i386	execveat		sys_execveat			stub32_execveat
+359   i386  slob_free           sys_slob_free
+360   i386  slob_used           sys_slob_used
+#361   i386  mem_size    sys_mem_size
+#362   i386  mem_used    sys_mem_used
